@@ -33,7 +33,8 @@ blocks:
           - cd
           - chmod 0600 /home/semaphore/.ssh/builder.key
           - ssh-keyscan -p 122 -H 152.19.134.151 >> /home/semaphore/.ssh/known_hosts
-          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' prtest@152.19.134.151:/home/prtest/build/en/ ~/DOCS
+          # we use rrsync so source path is relative to /home/prtest/build
+          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' prtest@152.19.134.151:/en/ ~/DOCS
           - cache delete docs
           - cache store docs DOCS
   #
@@ -97,7 +98,8 @@ blocks:
           - cd
           - chmod 0600 /home/semaphore/.ssh/builder.key
           - ssh-keyscan -p 122 -H 152.19.134.151 >> /home/semaphore/.ssh/known_hosts
-          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' DOCS/ prtest@152.19.134.151:/home/prtest/build/en
+          # we use rrsync so source path is relative to /home/prtest/build
+          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' DOCS/ prtest@152.19.134.151:/en
   #        
   - name: 🌀 Clearing All Caches
     execution_time_limit:
