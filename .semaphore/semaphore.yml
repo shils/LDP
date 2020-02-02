@@ -63,13 +63,14 @@ blocks:
       - name: 🧱 LDP Documents Processing via Martins scripts
         commands: 
           # this magic thing comes from semaphore support, we need slightly more than 4GB of RAM, and it gives us briefly 6GB
-          - sudo swapoff -a && sudo fallocate -l 2G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+          - sudo swapoff -a && sudo fallocate -l 2G /swapfile && sudo chmod 0600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
           # and now our normal stuff :-)
           - sudo apt-get update
           - sudo apt-get -y install texlive-font-utils linuxdoc-tools-text linuxdoc-tools-latex docbook-dsssl docbook-xsl docbook-utils htmldoc htmldoc-common docbook-xsl html2text docbook5-xml docbook-xsl-ns jing asciidoc libxml2-utils python3-all python3-networkx python3-nose fop ldp-docbook-xsl ldp-docbook-dsssl docbook opensp
           - cache restore pythonldp
           - sudo dpkg -i python-tldp/deb_dist/python3-tldp_*_all.deb
           # - cache restore docs
+          - pwd
           - ls -alR
           - mkdir -p BUILD
           - mkdir -p DOCS
