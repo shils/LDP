@@ -1,13 +1,110 @@
 version: v1.0
-name: Initial Pipeline
+name: 🗃 The Linux Documentation Project Pull Requests Builder
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu1804
+# Building whole set is a long processs
+execution_time_limit:
+  hours: 9
 blocks:
-  - name: 'Block #1'
+  #
+  - name: 🔝 Building System checkout
     task:
       jobs:
-        - name: 'Job #1'
-          commands:
-            - checkout
+      - name: 🔝 Building System checkout
+        commands:
+          - echo $SEMAPHORE_GIT_COMMIT_RANGE
+          - echo $SEMAPHORE_GIT_BRANCH
+          - echo $SEMAPHORE_GIT_REF
+          - echo $SEMAPHORE_GIT_REF_TYPE
+  #
+  - name: ⏬ LDP Builder Preparation for Testing
+    execution_time_limit:
+      minutes: 15
+    skip:
+      when: "branch = 'master'"
+    task:
+      secrets:
+        - name: SSHK
+      jobs:
+      - name: ⏬ LDP Builder Preparation for Testing
+        commands:
+          - cd
+          - chmod 0600 /home/semaphore/.ssh/builder.key
+          - ssh-keyscan -p 122 -H 152.19.134.151 >> /home/semaphore/.ssh/known_hosts
+          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' prtest@152.19.134.151:/home/prtest/build/en/ ~/DOCS
+          - cache delete docs
+          - cache store docs DOCS
+  #
+  - name: 🧱 Compiling Martins LDP Python Scripts
+    execution_time_limit:
+      minutes: 15
+    task:
+      jobs:
+      - name: 🧱 Compiling Martins LDP Python Scripts
+        commands:
+          - sudo apt-get update
+          - sudo apt-get -y install texlive-font-utils linuxdoc-tools-text linuxdoc-tools-latex docbook-dsssl docbook-xsl docbook-utils htmldoc htmldoc-common docbook-xsl html2text docbook5-xml docbook-xsl-ns jing asciidoc libxml2-utils python3-stdeb fakeroot python3-all python3-networkx python3-nose fop ldp-docbook-xsl ldp-docbook-dsssl docbook opensp dh-python
+          - cd
+          - git clone https://github.com/tLDP/python-tldp
+          - cd python-tldp && rm -rf debian
+          - python3 setup.py --command-packages=stdeb.command bdist_deb
+          - sudo dpkg -i deb_dist/python3-tldp_*_all.deb
+          - cd
+          - ldptool --dump-cfg
+          - cache delete pythonldp
+          - cache store pythonldp python-tldp/deb_dist
+  #
+  - name: 🧱 LDP Documents Processing via Martins scripts
+    task:
+      jobs:
+      - name: 🧱 LDP Documents Processing via Martins scripts
+        commands: 
+          # this magic thing comes from semaphore support, we need slightly more than 4GB of RAM, and it gives us briefly 6GB
+          - sudo swapoff -a && sudo fallocate -l 2G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+          # and now our normal stuff :-)
+          - sudo apt-get update
+          - sudo apt-get -y install texlive-font-utils linuxdoc-tools-text linuxdoc-tools-latex docbook-dsssl docbook-xsl docbook-utils htmldoc htmldoc-common docbook-xsl html2text docbook5-xml docbook-xsl-ns jing asciidoc libxml2-utils python3-all python3-networkx python3-nose fop ldp-docbook-xsl ldp-docbook-dsssl docbook opensp
+          - cache restore pythonldp
+          - sudo dpkg -i python-tldp/deb_dist/python3-tldp_*_all.deb
+          # - cache restore docs
+          - ls -alR
+          - mkdir -p BUILD
+          - mkdir -p DOCS
+          - ldptool --loglevel info --builddir BUILD --configfile .semaphore/builder.ldptool.cfg --pubdir DOCS --list
+          - ldptool --loglevel info --builddir BUILD --configfile .semaphore/builder.ldptool.cfg --pubdir DOCS --publish
+          - date --universal --rfc-2822 > DOCS/LAST-BUILD
+          - ls -alR
+          - cache delete docs
+          - cache store docs DOCS 
+      prologue:
+        commands:
+          - checkout
+  #
+  - name: 🔀 Documents Transfer and Caching for Testing
+    execution_time_limit:
+      minutes: 15
+    skip:
+      when: "branch = 'maaster'"
+    task:
+      secrets:
+        - name: SSHK
+      jobs:
+      - name: 🔀 Documents Transfer and Caching for Testing
+        commands:
+          - cache restore docs
+          - cd
+          - chmod 0600 /home/semaphore/.ssh/builder.key
+          - ssh-keyscan -p 122 -H 152.19.134.151 >> /home/semaphore/.ssh/known_hosts
+          - rsync --stats -rvclz --delete-before -e 'ssh -p 122 -i /home/semaphore/.ssh/builder.key' DOCS/ prtest@152.19.134.151:/home/prtest/build/en
+  #        
+  - name: 🌀 Clearing All Caches
+    execution_time_limit:
+      minutes: 5
+    task:
+      jobs:
+      - name: 🌀 Clearing Caches
+        commands:
+          - cache clear
+# the happy end.
