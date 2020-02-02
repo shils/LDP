@@ -6,7 +6,7 @@ agent:
     os_image: ubuntu1804
 # Building whole set is a long processs
 execution_time_limit:
-  hours: 9
+  hours: 23
 blocks:
   #
   - name: 🔝 Building System checkout
